@@ -6,7 +6,10 @@ missing information stands out to reviewers.
 """
 from __future__ import annotations
 
+import io
 import math
+import sys
+from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from lxml import etree
@@ -16,6 +19,9 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _template import template_bytes  # noqa: E402
 
 FONT = "Malgun Gothic"
 TBD = "확인 필요"
@@ -337,7 +343,8 @@ def add_score_bars(slide, x, y, w, items: Sequence[tuple[str, float | None, floa
 # --------------------------------------------------------------------------- #
 class Deck:
     def __init__(self, doc_label: str, task_name: str):
-        self.prs = Presentation()
+        # embedded template: immune to DRM-encrypted python-pptx installs
+        self.prs = Presentation(io.BytesIO(template_bytes()))
         self.prs.slide_width = Inches(SLIDE_W)
         self.prs.slide_height = Inches(SLIDE_H)
         self.doc_label = doc_label

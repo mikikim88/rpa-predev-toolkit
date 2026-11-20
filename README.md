@@ -114,8 +114,9 @@ JSON 형식: [assessment](plugins/rpa-predev/skills/feasibility/references/asses
 
 ## 문제 해결
 
-- **`PackageNotFoundError: ... pptx/templates/default.pptx`** — 사내 문서보안(DRM)이 python-pptx 설치 파일의
-  템플릿을 암호화한 경우입니다. 가상환경을 새로 만들어 설치하거나(`python -m venv .venv`) DRM 예외 경로에 설치하세요.
+- **사내 문서보안(DRM) 환경** — 별도 조치 없이 동작하도록 만들어져 있습니다.
+  - python-pptx의 기본 템플릿이 암호화되어도 문제없도록 PPT 템플릿을 코드(`scripts/_template.py`)에 내장했습니다.
+  - 암호화된 현업 PPT·조사서 Excel은 Windows에서 PowerPoint/Excel을 통해 임시 폴더에 복사본을 만들어 읽습니다 (`scripts/drm.py`).
 - **생성한 PPT/Excel을 다른 PC에서 열 수 없음** — DRM이 적용된 폴더에서 생성된 파일입니다. 외부 공유 시 사내 반출 절차를 따르세요.
   이 때문에 저장소에는 샘플 Office 파일을 넣지 않고 `.gitignore`로 제외합니다.
 - **미리보기가 안 됨** — PowerPoint(Windows) 또는 LibreOffice가 필요합니다. 없으면 Claude가 텍스트 추출로 대신 점검합니다.

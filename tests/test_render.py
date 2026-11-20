@@ -28,6 +28,17 @@ def load(name):
     return json.loads((EX / name).read_text(encoding="utf-8"))
 
 
+def test_embedded_template_and_drm_passthrough(tmp_path: Path):
+    import io
+
+    from _template import template_bytes
+    from drm import readable_copy
+    assert zipfile.is_zipfile(io.BytesIO(template_bytes()))
+    p = tmp_path / "plain.pptx"
+    p.write_bytes(template_bytes())
+    assert readable_copy(p) == p.resolve()  # normal files are used as-is
+
+
 def test_scoring_rules():
     full = {k: {"score": 4} for k in
             ["standardization", "data_structure", "system_stability", "volume", "judgment"]}

@@ -1,7 +1,7 @@
 {
   "name": "rpa-predev",
   "displayName": "RPA Pre-Development Toolkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RPA 개발 전 단계 자동화: 과제 발굴 → 타당성 평가/ROI(Excel) → 프로세스 분석서 PDD(PPT) → 솔루션 설계서 SDD(PPT)",
   "author": {
     "name": "mikikim88"

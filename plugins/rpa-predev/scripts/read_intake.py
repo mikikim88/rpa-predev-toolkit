@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_assessment import INTAKE_COLS  # noqa: E402
+from drm import readable_copy  # noqa: E402
 
 FIELD_MAP = {
     "업무명": "task_name", "부서": "department", "담당자": "owner", "업무 설명": "description",
@@ -35,7 +36,7 @@ def find_sheet(wb):
 
 
 def read(path: Path) -> list[dict]:
-    wb = load_workbook(path, data_only=True)
+    wb = load_workbook(readable_copy(path), data_only=True)
     ws, hr = find_sheet(wb)
     heads = [ws.cell(row=hr, column=c).value for c in range(1, ws.max_column + 1)]
     out = []

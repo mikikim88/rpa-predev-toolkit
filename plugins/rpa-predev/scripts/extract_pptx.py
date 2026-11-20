@@ -18,6 +18,9 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from drm import readable_copy  # noqa: E402
+
 
 def walk(shapes):
     for shp in shapes:
@@ -74,7 +77,7 @@ def main() -> None:
     a = ap.parse_args()
     if a.images:
         a.images.mkdir(parents=True, exist_ok=True)
-    prs = Presentation(str(a.pptx))
+    prs = Presentation(str(readable_copy(a.pptx)))
     infos = [slide_info(s, i, a.images) for i, s in enumerate(prs.slides, start=1)]
     if a.json:
         print(json.dumps(infos, ensure_ascii=False, indent=2))
