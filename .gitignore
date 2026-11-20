@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# generated outputs (examples are rendered by tests into a temp dir)
+*_preview/
+out/
+~$*
+
+# Office files may be DRM-encrypted on corporate PCs; generate them locally instead
+*.pptx
+*.xlsx
+

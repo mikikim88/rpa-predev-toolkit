@@ -1,0 +1,16 @@
+{
+  "name": "rpa-toolkit",
+  "description": "RPA 프로젝트용 Claude Code 플러그인 모음",
+  "owner": {
+    "name": "mikikim88"
+  },
+  "plugins": [
+    {
+      "name": "rpa-predev",
+      "source": "./plugins/rpa-predev",
+      "description": "RPA 개발 전 단계 자동화: 과제 발굴 → 타당성 평가/ROI → PDD → SDD",
+      "category": "productivity",
+      "tags": ["rpa", "pdd", "sdd", "korean"]
+    }
+  ]
+}

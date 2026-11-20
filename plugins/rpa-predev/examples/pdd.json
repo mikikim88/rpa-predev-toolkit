@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "task_name": "월말 거래처 정산 데이터 ERP 등록",
+    "department": "재무팀",
+    "author": "RPA 분석가",
+    "date": "2026-11-20",
+    "version": "v1.0",
+    "work_hours_per_month": 160,
+    "source_files": ["거래처정산_업무설명.pptx"]
+  },
+  "summary": {
+    "key_points": [
+      "월 450건 · 건당 6분, 월말 3영업일에 집중되어 마감 지연의 주요 원인",
+      "SAP GUI 기반 전표 입력으로 화면 변경이 적어 안정적인 자동화 가능",
+      "금액 차이 허용범위(±1,000원) 판단을 룰로 정의하면 사람 판단 구간은 '차이 초과 건 승인' 1단계로 축소",
+      "거래처별 엑셀 컬럼명 불일치와 봇 계정 발급 여부는 현업·IT 확인 필요"
+    ]
+  },
+  "overview": {
+    "purpose": "거래처별 월 정산 금액을 ERP 매입 전표로 등록하여 월 결산을 마감",
+    "owner": "재무팀 정산 담당 2명",
+    "frequency": "월 1회 (매월 말일 ~ 익월 3영업일)",
+    "trigger": "거래처 정산 엑셀이 공유폴더 \\\\fs01\\정산\\YYYYMM 에 모두 업로드됨",
+    "summary_flow": "엑셀 취합 → 검증 → SAP 전표 입력 → 결과 회신",
+    "time_per_case_min": 6,
+    "monthly_volume": 450,
+    "output": "SAP 매입 전표, 정산 결과 보고 메일 (재무팀장)"
+  },
+  "systems": [
+    {"name": "SAP S/4HANA (SAP GUI)", "access": "클라이언트 (SAP GUI 7.7)", "auth": "ID/PW", "menu_path": "회계 → 매입채무 → 전표 입력 (FB60)", "difficulty": "중", "note": "SAP GUI Scripting 허용 여부 확인"},
+    {"name": "Microsoft Excel", "access": "로컬 프로그램", "auth": "-", "menu_path": "공유폴더 정산 엑셀", "difficulty": "하", "note": ""},
+    {"name": "Outlook", "access": "클라이언트", "auth": "SSO", "menu_path": "메일 발송", "difficulty": "하", "note": ""}
+  ],
+  "steps": [
+    {"no": 1, "action": "정산 엑셀 목록 수집", "system": "공유폴더 / YYYYMM", "operation": "폴더 내 *.xlsx 파일 목록 조회", "check": "파일 수 = 거래처 수"},
+    {"no": 2, "action": "엑셀 데이터 읽기", "system": "Excel / 정산 시트", "operation": "거래처코드, 정산월, 공급가액, 부가세 컬럼 읽기", "check": "필수 컬럼 존재"},
+    {"no": 3, "action": "데이터 검증", "system": "-", "operation": "날짜·금액 형식, 공급가액 × 10% = 부가세 검증", "check": "오류 건 분리"},
+    {"no": 4, "action": "SAP 로그인", "system": "SAP GUI / 로그온", "operation": "봇 계정 ID/PW 입력", "check": "메인화면 진입"},
+    {"no": 5, "action": "거래처 존재 확인", "system": "SAP / FK03", "operation": "거래처코드 입력 → 조회", "check": "거래처명 일치"},
+    {"no": 6, "action": "매입 전표 입력", "system": "SAP / FB60", "operation": "전기일, 금액, 세금코드, 텍스트 입력 → 시뮬레이션", "check": "차대변 균형"},
+    {"no": 7, "action": "금액 차이 초과 건 승인", "system": "Outlook", "operation": "차이 ±1,000원 초과 건 승인 요청", "check": "담당자 승인 회신", "human_judgment": true},
+    {"no": 8, "action": "전표 저장 및 번호 기록", "system": "SAP / FB60", "operation": "저장 → 상태바 전표번호 읽기", "check": "전표번호 10자리"},
+    {"no": 9, "action": "결과 보고 메일 발송", "system": "Outlook", "operation": "처리 결과 엑셀 첨부 발송", "check": "발송 완료"}
+  ],
+  "inputs": [
+    {"name": "거래처 정산 엑셀", "source": "공유폴더 \\\\fs01\\정산\\YYYYMM", "format": "xlsx", "structure": "거래처코드, 거래처명, 정산월, 공급가액, 부가세, 비고", "volume": "월 450행 (거래처당 1파일)", "validation": "부가세 = 공급가액 × 10% (±10원)"},
+    {"name": "거래처 마스터", "source": "SAP FK03", "format": "화면 조회", "structure": "거래처코드, 거래처명, 계좌", "volume": "건별 조회", "validation": "코드 존재 여부"}
+  ],
+  "outputs": [
+    {"name": "매입 전표", "destination": "SAP S/4HANA", "format": "전표", "follow_up": "재무팀 결산 검토", "notify": ""},
+    {"name": "처리 결과 보고서", "destination": "공유폴더 \\\\fs01\\정산\\결과", "format": "xlsx", "follow_up": "재무팀장 확인", "notify": "재무팀장, 정산 담당"}
+  ],
+  "exceptions": [
+    {"category": "비즈니스", "type": "금액 차이 초과", "condition": "엑셀 금액과 계약 금액 차이 > 1,000원", "handling": "전표 보류, 승인 요청 메일 발송", "notify": "정산 담당"},
+    {"category": "데이터", "type": "필수 컬럼 누락", "condition": "공급가액 또는 거래처코드 공란", "handling": "해당 건 예외 목록 기록, 다음 건 진행", "notify": "정산 담당"},
+    {"category": "데이터", "type": "거래처 미등록", "condition": "FK03 조회 결과 없음", "handling": "처리 보류, 마스터 등록 요청", "notify": "구매팀"},
+    {"category": "시스템", "type": "SAP 응답 지연", "condition": "30초 무응답", "handling": "3회 재시도 후 실패 처리", "notify": "RPA 운영팀"},
+    {"category": "시스템", "type": "로그인 실패", "condition": "비밀번호 만료 / 계정 잠김", "handling": "즉시 중단", "notify": "RPA 운영팀"}
+  ],
+  "assessment": {
+    "scores": {
+      "standardization": {"score": 5, "reason": "전표 입력 절차가 매월 동일"},
+      "data_structure": {"score": 4, "reason": "엑셀 양식 고정, 일부 거래처 컬럼명 상이"},
+      "system_stability": {"score": 4, "reason": "SAP GUI 화면 변경 거의 없음"},
+      "volume": {"score": 4, "reason": "월 450건, 월말 집중"},
+      "judgment": {"score": 4, "reason": "허용범위 룰화 가능, 초과 건만 사람 승인"}
+    },
+    "automation_rate": 0.85,
+    "automated_part": "Step 1–6, 8–9 : 엑셀 취합·검증, SAP 전표 입력·저장, 결과 보고",
+    "manual_part": "Step 7 : 금액 차이 초과 건 승인 (월 약 20건)"
+  },
+  "risks": [
+    {"category": "기술", "item": "SAP GUI Scripting 비활성화 정책", "impact": "상", "mitigation": "Basis 팀과 봇 계정 한정 허용 협의"},
+    {"category": "기술", "item": "거래처별 엑셀 컬럼명 상이", "impact": "중", "mitigation": "컬럼 매핑표 관리"},
+    {"category": "보안·규제", "item": "거래처 계좌정보 포함", "impact": "중", "mitigation": "로그에 계좌번호 마스킹"},
+    {"category": "운영", "item": "월말 3일 집중 처리 실패 시 마감 지연", "impact": "상", "mitigation": "D-1 리허설 실행, 수동 처리 매뉴얼 유지"},
+    {"category": "조직", "item": "정산 담당 업무 재배치", "impact": "하", "mitigation": "검증·분석 업무로 전환"}
+  ],
+  "open_questions": [
+    {"area": "시스템", "question": "봇 전용 SAP 계정 발급 및 FB60 권한 부여 가능 여부"},
+    {"area": "시스템", "question": "SAP GUI Scripting 허용 여부 (Basis 팀)"},
+    {"area": "데이터", "question": "거래처별 엑셀 컬럼명 매핑표 존재 여부"},
+    {"area": "예외", "question": "금액 차이 허용범위 ±1,000원 기준의 공식 승인 여부"},
+    {"area": "예외", "question": "승인 요청 후 회신 대기 기한 및 미회신 시 처리 방법"},
+    {"area": "리스크", "question": "로그 보관 기간 등 내부 감사 요건"}
+  ],
+  "recommendations": {
+    "short": ["현업 인터뷰로 확인 필요 6건 보완", "SAP 봇 계정 / Scripting 허용 협의", "PDD v2.0 확정"],
+    "mid": ["SDD 작성 및 PoC (거래처 30곳)", "금액 차이 승인 단계는 메일 승인(RDA)으로 구현", "11월 결산 병행 운영"],
+    "long": ["전체 거래처 확대 (월 450건)", "세금계산서 매칭(T-003)과 연계 자동화", "정산 엑셀 양식 표준화"]
+  },
+  "source_map": [
+    {"source": "원본 Slide 2–3", "content": "업무 개요, 처리 건수", "used_in": "1. 업무 개요"},
+    {"source": "원본 Slide 4–8", "content": "SAP 화면 캡처 (FK03, FB60)", "used_in": "3. 작업 단계"},
+    {"source": "원본 Slide 9", "content": "결과 보고 메일 예시", "used_in": "4-2. 출력 데이터"}
+  ]
+}

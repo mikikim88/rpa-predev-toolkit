@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "task_name": "월말 거래처 정산 데이터 ERP 등록",
+    "author": "RPA 설계자",
+    "date": "2026-11-20",
+    "version": "v1.0",
+    "rpa_platform": "UiPath (REFramework)",
+    "pdd_ref": "RPA분석서_월말 거래처 정산 데이터 ERP 등록_v1.0"
+  },
+  "overview": {
+    "goal": "거래처 정산 엑셀을 무인 봇이 검증·SAP 전표 등록하고, 금액 차이 초과 건만 담당자 승인을 받는다",
+    "automation_type": "Unattended (무인) + 승인 단계 메일 연동",
+    "expected_effect": "월 38시간 절감 (0.24 FTE), 월말 마감 1.5일 단축",
+    "scope_in": ["공유폴더 정산 엑셀 취합 및 검증", "SAP FB60 매입 전표 입력·저장", "금액 차이 초과 건 승인 요청 메일", "처리 결과 보고서 작성·발송"],
+    "scope_out": ["거래처 마스터 신규 등록 (구매팀 수동)", "정산 엑셀 작성 (거래처)"]
+  },
+  "tobe_flow": [
+    {"no": 1, "actor": "시스템", "action": "매월 말일 18:00 스케줄 트리거", "note": "Orchestrator 스케줄"},
+    {"no": 2, "actor": "Bot", "action": "정산 엑셀 취합·검증 후 큐 적재", "note": "Dispatcher"},
+    {"no": 3, "actor": "Bot", "action": "건별 거래처 확인 및 SAP 전표 입력", "note": "Performer"},
+    {"no": 4, "actor": "사람", "action": "금액 차이 초과 건 승인/반려 회신", "note": "월 약 20건"},
+    {"no": 5, "actor": "Bot", "action": "승인 건 전표 저장, 반려 건 예외 처리", "note": ""},
+    {"no": 6, "actor": "Bot", "action": "처리 결과 보고서 작성 및 메일 발송", "note": ""}
+  ],
+  "architecture": {
+    "pattern": "Dispatcher – Performer (Queue 기반)",
+    "description": "Dispatcher가 엑셀을 검증해 큐에 적재하고, Performer가 건별로 SAP 전표를 처리",
+    "modules": [
+      {"id": "M01", "name": "Init", "role": "설정 로드, 앱 실행, SAP 로그인", "input": "Config.xlsx, Asset", "output": "-", "systems": "SAP"},
+      {"id": "M02", "name": "Dispatcher", "role": "엑셀 취합·검증 후 Queue Item 생성", "input": "정산 엑셀", "output": "Queue Item", "systems": "Excel",
+       "steps": ["공유폴더 YYYYMM 파일 목록 조회", "컬럼 매핑표로 컬럼 표준화", "필수값·형식·부가세 검증", "정상 건 Queue 적재, 오류 건 예외 목록 기록"]},
+      {"id": "M03", "name": "Performer", "role": "건별 거래처 확인 및 전표 입력", "input": "Queue Item", "output": "전표번호", "systems": "SAP",
+       "steps": ["FK03 거래처 조회 및 거래처명 비교", "FB60 전표 헤더·라인 입력", "시뮬레이션으로 차대변 확인", "금액 차이 초과 시 승인 요청 후 Pending 처리", "저장 후 상태바에서 전표번호 추출"]},
+      {"id": "M04", "name": "Approval", "role": "승인 메일 발송 및 회신 확인", "input": "Pending 건", "output": "승인 결과", "systems": "Outlook"},
+      {"id": "M05", "name": "Reporter", "role": "결과 보고서 작성·발송", "input": "Queue 처리 결과", "output": "결과 xlsx, 메일", "systems": "Excel, Outlook"},
+      {"id": "M06", "name": "End", "role": "앱 종료, 로그 정리", "input": "-", "output": "-", "systems": "-"}
+    ]
+  },
+  "config": [
+    {"key": "InputFolder", "type": "Setting", "value_example": "\\\\fs01\\정산\\{YYYYMM}", "description": "정산 엑셀 폴더"},
+    {"key": "ColumnMapFile", "type": "Setting", "value_example": "Data\\ColumnMap.xlsx", "description": "거래처별 컬럼 매핑표"},
+    {"key": "AmountTolerance", "type": "Asset", "value_example": "1000", "description": "금액 차이 허용범위(원)"},
+    {"key": "SAP_Credential", "type": "Credential", "value_example": "", "description": "봇 전용 SAP 계정"},
+    {"key": "ReportRecipients", "type": "Asset", "value_example": "재무팀장; 정산담당", "description": "결과 보고 수신자"},
+    {"key": "MaxRetry", "type": "Setting", "value_example": "3", "description": "시스템 예외 재시도 횟수"}
+  ],
+  "queue": {
+    "name": "Settlement_Invoice",
+    "unit": "거래처 1곳의 월 정산 1건",
+    "reference": "{정산월}_{거래처코드}",
+    "retry": "System Exception 시 자동 재시도 2회",
+    "priority": "금액 큰 순",
+    "item_fields": [
+      {"name": "VendorCode", "type": "String", "description": "거래처코드"},
+      {"name": "SettleMonth", "type": "String", "description": "정산월 YYYYMM"},
+      {"name": "SupplyAmount", "type": "Decimal", "description": "공급가액"},
+      {"name": "VatAmount", "type": "Decimal", "description": "부가세"},
+      {"name": "SourceFile", "type": "String", "description": "원본 파일명"}
+    ]
+  },
+  "exception_policy": {
+    "business": "재시도 없이 해당 건을 Business Exception 처리, 사유를 결과 보고서에 기록하고 담당자에게 통보",
+    "system": "스크린샷 저장 → SAP 재기동 → 최대 3회 재시도, 초과 시 Failed 처리 후 운영팀 알림"
+  },
+  "exceptions": [
+    {"type": "Business", "name": "거래처 미등록", "detection": "FK03 조회 결과 없음", "handling": "BE 처리, 구매팀 마스터 등록 요청", "retry": "없음", "notify": "구매팀"},
+    {"type": "Business", "name": "금액 차이 초과", "detection": "차이 > AmountTolerance", "handling": "승인 요청 후 Pending, 반려 시 BE", "retry": "없음", "notify": "정산 담당"},
+    {"type": "Business", "name": "데이터 검증 오류", "detection": "Dispatcher 검증 실패", "handling": "큐 미적재, 예외 목록 기록", "retry": "없음", "notify": "정산 담당"},
+    {"type": "System", "name": "SAP 응답 지연", "detection": "요소 대기 30초 초과", "handling": "스크린샷 후 SAP 재기동", "retry": "3회", "notify": "RPA 운영팀"},
+    {"type": "System", "name": "로그인 실패", "detection": "로그온 오류 메시지", "handling": "즉시 프로세스 중단", "retry": "0회", "notify": "RPA 운영팀"}
+  ],
+  "logging": {
+    "policy": "건별 처리 이력을 Queue와 결과 보고서에 남기고, 계좌번호 등 민감정보는 마스킹",
+    "items": [
+      {"point": "프로세스 시작/종료", "content": "실행 ID, 시작·종료 시각, 처리 건수"},
+      {"point": "건별 처리", "content": "Reference, 전표번호, 처리 결과"},
+      {"point": "예외 발생", "content": "예외 유형, 메시지, 스크린샷 경로"}
+    ],
+    "report": "결과 xlsx (성공 / 업무예외 / 시스템예외 시트) — 공유폴더 \\\\fs01\\정산\\결과"
+  },
+  "notifications": [
+    {"trigger": "처리 완료", "recipient": "재무팀장, 정산 담당", "channel": "메일", "content": "처리 요약 + 결과 xlsx"},
+    {"trigger": "승인 필요", "recipient": "정산 담당", "channel": "메일", "content": "차이 내역, 승인/반려 버튼"},
+    {"trigger": "시스템 장애", "recipient": "RPA 운영팀", "channel": "메일 + 메신저", "content": "오류 메시지, 스크린샷"}
+  ],
+  "environment": {
+    "machine": "무인 봇 VM 1대 (Windows Server 2022)",
+    "schedule": "매월 말일 18:00 시작, 익월 1~3영업일 09:00 재실행 (승인 건)",
+    "runtime": "약 2.5시간 (450건 × 20초)",
+    "licenses": "Unattended Robot 1, Orchestrator",
+    "credential_store": "Orchestrator Credential Asset",
+    "network": "사내망 (SAP, 공유폴더 접근 필요)",
+    "dependencies": "SAP GUI 7.7, Excel 2021, Outlook"
+  },
+  "security": [
+    {"item": "봇 계정", "measure": "봇 전용 SAP 계정, FB60·FK03 최소 권한, 비밀번호 90일 자동 갱신"},
+    {"item": "민감정보", "measure": "로그·스크린샷에서 계좌번호 마스킹, 결과 파일 접근권한 재무팀 한정"},
+    {"item": "감사 추적", "measure": "Queue 이력 1년 보관, 실행 로그 Orchestrator 보관"}
+  ],
+  "test_cases": [
+    {"id": "TC-01", "scenario": "정상 거래처 10건 전표 등록", "type": "정상", "data": "정상 엑셀 10개", "expected": "전표 10건 생성, 결과 보고 발송"},
+    {"id": "TC-02", "scenario": "부가세 불일치 데이터", "type": "예외", "data": "부가세 오류 1건", "expected": "큐 미적재, 예외 목록 기록"},
+    {"id": "TC-03", "scenario": "미등록 거래처", "type": "예외", "data": "없는 거래처코드", "expected": "BE 처리, 구매팀 메일"},
+    {"id": "TC-04", "scenario": "금액 차이 초과 → 승인", "type": "예외", "data": "차이 5,000원", "expected": "승인 후 전표 저장"},
+    {"id": "TC-05", "scenario": "SAP 강제 종료", "type": "예외", "data": "처리 중 SAP 종료", "expected": "재기동 후 재처리, 중복 전표 없음"}
+  ],
+  "plan": [
+    {"phase": "설계 확정", "task": "SDD 리뷰, 봇 계정·권한 확보", "duration": "1주", "owner": "RPA팀 / IT"},
+    {"phase": "개발", "task": "모듈 M01–M06 개발 및 단위 테스트", "duration": "3주", "owner": "RPA 개발자"},
+    {"phase": "테스트", "task": "통합 테스트, UAT (TC-01~05)", "duration": "2주", "owner": "RPA팀 / 재무팀"},
+    {"phase": "이관", "task": "운영 배포, 병행 운영 1회", "duration": "1개월", "owner": "RPA 운영팀"}
+  ],
+  "open_questions": [
+    {"area": "IT", "question": "SAP GUI Scripting 봇 계정 한정 허용 여부"},
+    {"area": "현업", "question": "승인 메일 미회신 시 대기 기한 (D+2?)"},
+    {"area": "보안", "question": "결과 파일 내 계좌번호 노출 허용 범위"}
+  ]
+}

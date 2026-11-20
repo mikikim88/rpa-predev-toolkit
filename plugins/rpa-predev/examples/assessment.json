@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "project": "재무본부 RPA 과제 발굴 (예시)",
+    "organization": "가상회사 재무본부",
+    "date": "2026-11-20",
+    "author": "RPA 분석가",
+    "work_hours_per_month": 160,
+    "hourly_cost": 35000,
+    "effect_threshold_hours": 20
+  },
+  "candidates": [
+    {
+      "id": "T-001",
+      "task_name": "월말 거래처 정산 데이터 ERP 등록",
+      "department": "재무팀",
+      "owner": "정산 담당",
+      "description": "거래처별 정산 엑셀을 취합해 ERP에 매입 전표로 등록하고 결과를 회신",
+      "frequency": "월",
+      "monthly_volume": 450,
+      "minutes_per_case": 6,
+      "systems": "SAP S/4HANA, Excel, Outlook",
+      "input_type": "정형 (Excel/CSV/DB)",
+      "human_judgment": "일부 (룰 기반)",
+      "source": "현업 인터뷰 2026-11-10",
+      "scores": {
+        "standardization": {"score": 5, "reason": "전표 입력 절차가 매월 동일"},
+        "data_structure": {"score": 4, "reason": "정산 엑셀 양식 고정, 일부 거래처 컬럼명 상이"},
+        "system_stability": {"score": 4, "reason": "SAP GUI 화면 변경 거의 없음"},
+        "volume": {"score": 4, "reason": "월 450건, 월말 3일에 집중"},
+        "judgment": {"score": 4, "reason": "금액 차이 허용범위 판단은 룰로 정의 가능"}
+      },
+      "expected_automation_rate": 0.85,
+      "complexity": "중",
+      "notes": "월말 마감 일정 단축 효과 큼",
+      "open_questions": [
+        {"area": "데이터", "question": "거래처별 정산 엑셀 컬럼 매핑표 존재 여부"},
+        {"area": "시스템", "question": "봇 전용 SAP 계정 발급 가능 여부"}
+      ]
+    },
+    {
+      "id": "T-002",
+      "task_name": "법인카드 사용내역 증빙 대사",
+      "department": "재무팀",
+      "owner": "경비 담당",
+      "description": "카드사 사용내역과 그룹웨어 경비 신청 내역을 대사하고 미제출 건 독촉 메일 발송",
+      "frequency": "주",
+      "monthly_volume": 1200,
+      "minutes_per_case": 1.5,
+      "systems": "카드사 웹, 그룹웨어, Excel",
+      "input_type": "정형 (Excel/CSV/DB)",
+      "human_judgment": "없음",
+      "source": "현업 조사서",
+      "scores": {
+        "standardization": {"score": 5, "reason": "대사 규칙 명확"},
+        "data_structure": {"score": 5, "reason": "카드사 CSV 다운로드"},
+        "system_stability": {"score": 3, "reason": "카드사 웹 UI 연 1~2회 개편"},
+        "volume": {"score": 5, "reason": "월 1,200건"},
+        "judgment": {"score": 5, "reason": "판단 없음"}
+      },
+      "expected_automation_rate": 0.9,
+      "complexity": "하"
+    },
+    {
+      "id": "T-003",
+      "task_name": "세금계산서 수취 및 ERP 매칭",
+      "department": "회계팀",
+      "owner": "세무 담당",
+      "description": "메일로 받은 PDF 세금계산서를 확인해 ERP 매입 건과 매칭",
+      "frequency": "일",
+      "monthly_volume": 600,
+      "minutes_per_case": 3,
+      "systems": "Outlook, 홈택스, SAP",
+      "input_type": "반정형 (양식 PDF/메일)",
+      "human_judgment": "일부 (룰 기반)",
+      "source": "현업 인터뷰 2026-11-12",
+      "scores": {
+        "standardization": {"score": 4, "reason": "매칭 기준 정형화"},
+        "data_structure": {"score": 3, "reason": "PDF 양식 다양 → 홈택스 다운로드로 대체 검토"},
+        "system_stability": {"score": 3, "reason": "홈택스 보안 정책 변경 잦음"},
+        "volume": {"score": 4, "reason": "월 600건"},
+        "judgment": {"score": 3, "reason": "불일치 건 처리 판단 필요"}
+      },
+      "expected_automation_rate": 0.6,
+      "complexity": "상",
+      "open_questions": ["홈택스 공동인증서 봇 사용 허용 여부 (보안팀)"]
+    },
+    {
+      "id": "T-004",
+      "task_name": "분기 예산 집행 보고서 작성",
+      "department": "기획팀",
+      "owner": "예산 담당",
+      "description": "부서별 예산 집행 현황을 취합해 경영진 보고서 작성",
+      "frequency": "분기",
+      "monthly_volume": 2,
+      "minutes_per_case": 240,
+      "systems": "SAP, PowerPoint",
+      "input_type": "정형 (Excel/CSV/DB)",
+      "human_judgment": "필수 (사람 판단)",
+      "source": "현업 조사서",
+      "scores": {
+        "standardization": {"score": 2, "reason": "보고 형식이 분기마다 바뀜"},
+        "data_structure": {"score": 4, "reason": "SAP 리포트 기반"},
+        "system_stability": {"score": 4, "reason": ""},
+        "volume": {"score": 1, "reason": "분기 1회"},
+        "judgment": {"score": 1, "reason": "코멘트 작성은 사람 판단"}
+      },
+      "expected_automation_rate": 0.3,
+      "complexity": "중",
+      "notes": "데이터 취합 부분만 RDA로 검토 가능"
+    },
+    {
+      "id": "T-005",
+      "task_name": "신규 거래처 마스터 등록",
+      "department": "구매팀",
+      "owner": "구매 담당",
+      "description": "신규 거래처 신청서 내용을 검증하여 ERP 거래처 마스터 등록",
+      "frequency": "수시",
+      "monthly_volume": 80,
+      "systems": "그룹웨어 결재, SAP",
+      "input_type": "반정형 (양식 PDF/메일)",
+      "human_judgment": "일부 (룰 기반)",
+      "source": "현업 인터뷰 2026-11-14",
+      "scores": {
+        "standardization": {"score": 4, "reason": ""},
+        "data_structure": {"score": 3, "reason": "사업자등록증 이미지 첨부"}
+      },
+      "open_questions": [{"area": "데이터", "question": "사업자등록증 진위 확인 절차"}]
+    }
+  ]
+}
